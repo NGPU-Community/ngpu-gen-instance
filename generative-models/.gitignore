@@ -1,0 +1,22 @@
+# extensions
+*.egg-info
+*.py[cod]
+
+# envs
+.pt13
+.pt2
+
+# directories
+/checkpoints
+/dist
+/outputs
+/build
+/src
+.vs/generative-models/FileContentIndex/43f14ef0-7add-47e6-8b58-2fa72cb49943.vsidx
+.vs/generative-models/FileContentIndex/95a049d1-05dd-4862-877c-ba0e2211d1cb.vsidx
+.vs/generative-models/FileContentIndex/read.lock
+.vs/generative-models/v17/.wsuo
+.vs/ProjectSettings.json
+.vs/slnx.sqlite
+.vs/VSWorkspaceState.json
+.vs/generative-models/FileContentIndex/e497625c-e8a2-43e0-abdf-838443a5ecc5.vsidx
