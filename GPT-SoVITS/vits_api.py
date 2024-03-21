@@ -158,14 +158,17 @@ class Actor:
              if(audio_length < 3100): #ms
                  logging.error(f"ref audio length ={audio_length}, less than 3100ms")
                  return -1
-             if(audio_length > 9500): #ms
-                 logging.error(f"ref audio length ={audio_length}, more than 9500ms")
-                 return -1
+             #if(audio_length > 9500): #ms
+             #    logging.error(f"ref audio length ={audio_length}, more than 9500ms")
+             #    return -1
              if(audio_length > 8000): #ms
-                 logging.info(f"audio length > 8000, should limit to 8000ms")
-                 audio_8_sec = sourceAudio[:8000]
-                 refAudio_file_new = "limit8s_" + refAudio_file
-                 sf.write(refAudio_file_new, audio_8_sec.raw_data, sourceAudio.frame_rate)
+                 logging.info(f"audio length > 8000, should limit to 8000ms, dled audio sampleRate={sourceAudio.frame_rate}, channels={sourceAudio.channels}")
+                 audio_8_sec_temp = sourceAudio[:8000]
+                 audio_8_sec = audio_8_sec_temp.set_channels(sourceAudio.channels)
+                 filename, ext = refAudio_file.rsplit(".",1)
+                 refAudio_file_new = f"{filename}_8sec.{ext}"
+                 #sf.write(refAudio_file_new, audio_8_sec.get_array_of_samples(), sourceAudio.frame_rate)
+                 audio_8_sec.export(refAudio_file_new, format="mp3")
                  refAudio_file = refAudio_file_new
 
              newOne = Voice()
@@ -347,8 +350,9 @@ async def tts(content : TTSRequest):
 
     result = actor.tts(content)
     #result.result_code = 100
-    result.msg = "voiceId=" + str(content.voiceId) + " has finished. inferText=" + content.inferText;
-      
+    #result.msg = "voiceId=" + str(content.voiceId) + " has finished. inferText=" + content.inferText;
+    result.msg = "voiceId=" + str(content.voiceId) + " has finished"
+    
     retJ = {"srt":result.srt, "audio": result.audio, "msg": result.msg, "result_code": result.result_code}
     logging.info(f"text={content.inferText}, voiceId={content.voiceId}, return {retJ}")
 
