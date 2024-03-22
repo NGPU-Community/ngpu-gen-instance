@@ -57,9 +57,10 @@ class TTSRequest(BaseModel):
     voiceId: int = '' #must, voice id from adding voice
     inferText: str = '' #must, content for tts
     inferLang: str = 'auto' #optional, auto, zh, jp, en, ko,
+    cutMode: str = 'auto'
 
     def __json__(self):
-        return {"voiceId":self.voiceId, "inferText":self.inferText, "inferLang":self.inferLang}
+        return {"voiceId":self.voiceId, "inferText":self.inferText, "inferLang":self.inferLang, "cutMode":self.cutMode}
 
     @classmethod
     def from_json(cls, json_data):
@@ -67,6 +68,7 @@ class TTSRequest(BaseModel):
         one.voiceId = json_data.get("voiceId")
         one.inferText = json_data.get("inferText")
         one.inferLang = json_data.get("inferLang")
+        one.cutMode = json_data.get("cutMode")
 
         return one
 
@@ -219,11 +221,14 @@ class Actor:
             #language, confidence = self.detect_language(voice.inferText)
             #logging.info(f"for text {voice.inferText}, detect_language returns {language}, {confidence}")
             language = voice.inferLang
-            cut = i18n("按标点符号切")
-            if(language == "en"):
+            if(voice.cutMode == "auto"):
+                cut = i18n("按标点符号切")
+            elif(voice.cutMode == "en_period"):
                 cut = i18n("按英文句号.切")
-            if(language == "zh"):
+            if(language == "zh_stop"):
                 cut = i18n("按中文句号。切")
+            else:
+                cut = i18n("按标点符号切")
             
             synthesis_result = get_tts_wav(ref_wav_path=voiceItem.ref_audio, 
                                        prompt_text= voiceItem.ref_text,
@@ -343,6 +348,7 @@ async def tts(content : TTSRequest):
     - voiceId: int = '' #must, voice id from adding voice
     - inferText: str = '' #must, content for tts
     - inferLang: str = 'auto' #optional, auto, zh, jp, en, ko,
+    - cutMode, str = 'auto', #optional, auto, en_period, zh_stop, punc ( punctuation)
     """
     logging.info(f"before infer, content= {content}")
     result = TTSRt(srt="", audio="", result_code=0, msg="")
