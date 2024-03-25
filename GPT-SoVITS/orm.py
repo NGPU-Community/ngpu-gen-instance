@@ -27,7 +27,7 @@ Status Code	Description
 
 Base = declarative_base()
 
-#for tts task
+#for tts task, current no use for tts call in syncronization
 class Task(Base):
     __tablename__ = "task"
     id = Column(Integer, primary_key=True)
@@ -168,3 +168,9 @@ class DbClient:
             for obj in obj_to_delete:
                 self.session.delete(obj)
                 self.session.commit()
+
+    #get the total number of voices
+    def getVoiceCount(self) -> int:
+        with self.lock:
+            total_entries = self.session.query(Voice).count()
+            return total_entries

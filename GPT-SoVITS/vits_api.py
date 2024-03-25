@@ -119,7 +119,11 @@ class Actor:
         self.url_prefix = "http://" + public_ip + ":9000/"
 
         self.version = "gpt-soVits_v1"
-
+        
+        #for worker thread
+        self.thread = threading.Thread(target = self.check_task)
+        self.thread.daemon = True
+        self.thread.start()
         self.threadRunning = True
 
     def __del__(self):
@@ -131,6 +135,17 @@ class Actor:
     def get_public_ip(self):
         response = requests.get('https://ifconfig.me/ip')
         return response.text
+
+    def check_task(self):
+        logging.info("check_task, internal thread")
+        #check db items 
+        while(self.threadRunning):
+            #check 
+            logging.info(f"for mysql connection, current voice model counter ={dbClient.getVoiceCount()}")
+            time.sleep(300)
+
+        logging.info("finishing internal thread.")
+        return
 
 
     #download url to folder, keep the file name untouched
