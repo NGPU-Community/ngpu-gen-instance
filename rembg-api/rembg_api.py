@@ -112,7 +112,8 @@ class Actor:
     def check_task(self):
         logging.info("check_task, internal thread")
         #check db items 
-        dbClientThread = DbClient()
+        #dbClientThread = DbClient()
+        dbClientThread = dbClient
         while(self.threadRunning):
             #check 
             tasks = dbClientThread.queryByStatus(0)

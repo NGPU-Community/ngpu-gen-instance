@@ -129,7 +129,8 @@ class SadActor:
 
     def check_task(self):
         logging.info("check_task, internal thread")
-        dbClientThread = DbClient()
+        #dbClientThread = DbClient()
+        dbClientThread = dbClient
         #check db items 
         while(self.threadRunning):
             #check 
