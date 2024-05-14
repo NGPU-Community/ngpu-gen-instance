@@ -50,6 +50,19 @@ class Request(BaseModel):
 
         return one
 
+class GetRequest(BaseModel):
+    taskId: str = 'xxx'  #
+
+    def __json__(self):
+        return {"taskId":self.taskId}
+
+    @classmethod
+    def from_json(cls, json_data):
+        one = cls()
+        one.taskId = json_data.get("taskId")
+
+        return one
+
 class Actor:
     def __init__(self, name: str):
         self.name = name
@@ -264,8 +277,9 @@ async def start(content : Request):
     #return response
     return retJ
 
-@app.get("/get")
-async def get_status(taskID:str):
+@app.post("/get")
+async def get_status(getRequest:GetRequest):
+    taskID = getRequest.taskId
     logging.info(f"before startTask, taskID= {taskID}")
     return actor.get_status(taskID)
 
