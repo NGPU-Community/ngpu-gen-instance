@@ -195,6 +195,32 @@ class Actor:
          finally:
              task.status = 2
 
+
+    #action function, in sync mode,no task 
+    def do_sampleSync(self, request:Request):
+        #empty? checked before, no need
+         try:
+             logging.info(f"start to handle prompt={request.prompt}")
+             data = {"model":"llama3","prompt":request.prompt, "stream":False}
+             dataStr = json.dumps(data)
+             logging.info(f"before ollama inference, url={self.ollamaUrl}, data={dataStr}")
+             response = requests.post(self.ollamaUrl, data = dataStr)
+             logging.info(f"for response = {response.text}, statuscode={response.status_code}") 
+             if(response.status_code == 200) :
+                 json_data = json.loads(response.text)
+                 logging.info(f"reponse 200, response={json_data['response']}")
+                 return json_data['response']
+             else:
+                 logging.info(f"reponse = {response.status_code}, failed")
+                 raise requests.exceptions.HTTPError(f'request ollama service error, status = {response.status_code}')        
+
+         except Exception as e:
+             logging.error(f"something wrong during prompt={request.prompt}, exception={repr(e)}")
+             return f"failed to answer {request.prompt}, please contact admin."
+         finally:
+             logging.info(f"finished all for prompt = {request.prompt}")
+          
+             
     def get_status(self, task_id: str):
         ret = MyClass()
         ret.task_id = task_id
@@ -283,3 +309,20 @@ async def get_status(getRequest:GetRequest):
     logging.info(f"before startTask, taskID= {taskID}")
     return actor.get_status(taskID)
 
+@app.post("/startSync")
+async def startSync(content : Request):
+    """
+    - prompt: question sent to llama3
+    """
+    logging.info(f"before infer, content= {content}")
+    result = MyClass()
+    
+    data = actor.do_sampleSync(content)
+    result.result_code = 100
+    result.msg = "Done successfully."
+      
+    retJ = {"data":data, "result_code": result.result_code, "msg": result.msg}
+    logging.info(f"prompt={content.prompt}  return {retJ}")
+
+    #return response
+    return retJ
