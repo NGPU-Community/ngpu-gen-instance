@@ -96,8 +96,9 @@ class SadActor:
         #for worker thread
         self.thread = threading.Thread(target = self.check_task)
         self.thread.daemon = True
-        self.thread.start()
         self.threadRunning = True
+        self.thread.start()
+        
 
     def __del__(self):
         self.threadRunning = False
