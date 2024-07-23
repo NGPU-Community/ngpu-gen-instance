@@ -55,7 +55,7 @@ def resetFacefusionGlobals(sourcePath:str, targetPath:str):
     facefusion.globals.log_level = 'info'
 	# execution
     facefusion.globals.execution_device_id = '0'
-    facefusion.globals.execution_providers = ["CPUExecutionProvider"] #"CUDAExecutionProvider", 
+    facefusion.globals.execution_providers = ["CUDAExecutionProvider"]#["CPUExecutionProvider"] #"", 
     facefusion.globals.execution_thread_count = 4
     facefusion.globals.execution_queue_count = 1
 	# memory
@@ -354,8 +354,9 @@ class Actor:
         #for worker thread
         self.thread = threading.Thread(target = self.check_task)
         self.thread.daemon = True
-        self.thread.start()
         self.threadRunning = True
+        self.thread.start()
+
 
     def __del__(self):
         self.threadRunning = False
