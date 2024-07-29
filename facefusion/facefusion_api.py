@@ -624,6 +624,14 @@ async def start(content : Request):
         return JSONResponse(content={"task_id":"", "result_code": 104, "msg": "wrong param. Please check if it is json."}, status_code=200)
 
 
+@app.get("/get")
+async def get_status(taskID:str):
+    if(taskID == None or taskID == ''):
+        logging.error("cannot find taskID, please check the input param")
+        return {"data": "", "result_code": 104, "msg": "cannot find param task_id, please check the input param","task_id":""}
+    logging.info(f"before startTask, taskID= {taskID}")
+    return actor.get_status(taskID)
+
 @app.post("/get")
 async def get_status(getRequest:StatusRequest):
     if(getRequest.task_id == None or getRequest.task_id == ''):

@@ -14,7 +14,7 @@ from argparse import ArgumentParser, HelpFormatter
 import facefusion.choices
 import facefusion.globals
 from facefusion.face_analyser import get_one_face, get_average_face
-from facefusion.face_store import get_reference_faces, append_reference_face
+from facefusion.face_store import get_reference_faces, append_reference_face, clear_reference_faces, clear_static_faces
 from facefusion import face_analyser, face_masker, content_analyser, config, process_manager, metadata, logger, wording, voice_extractor
 from facefusion.content_analyser import analyse_image, analyse_video
 from facefusion.processors.frame.core import get_frame_processors_modules, load_frame_processor_module, clear_frame_processors_modules
@@ -211,6 +211,8 @@ def apply_args(program : ArgumentParser) -> None:
 def runApi() -> str | None:
     logger.init(facefusion.globals.log_level)
     clear_frame_processors_modules()
+    clear_static_faces()
+    clear_reference_faces()
     if not pre_check() or not content_analyser.pre_check() or not face_analyser.pre_check() or not face_masker.pre_check() or not voice_extractor.pre_check():
         return None
     for frame_processor_module in get_frame_processors_modules(facefusion.globals.frame_processors):
