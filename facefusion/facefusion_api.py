@@ -55,7 +55,8 @@ def resetFacefusionGlobals(sourcePath:str, targetPath:str):
     facefusion.globals.log_level = 'info'
 	# execution
     facefusion.globals.execution_device_id = '0'
-    facefusion.globals.execution_providers = ["CUDAExecutionProvider"]#["CPUExecutionProvider"] #"", 
+    facefusion.globals.execution_providers = ["CUDAExecutionProvider"]#["CPUExecutionProvider"] #"",
+    #facefusion.globals.execution_providers = ["CPUExecutionProvider"]
     facefusion.globals.execution_thread_count = 4
     facefusion.globals.execution_queue_count = 1
 	# memory
@@ -140,7 +141,7 @@ def download(url: str, directory:str):
 
 class StartRet(BaseModel):
     task_id: str = ""
-    result_code: int = 0
+    result_code: int = Result_Unknown
     msg: str = ""
 
 dbClient = DbClient()
@@ -370,11 +371,11 @@ class Actor:
 
     def init_task(self, content: Any):
         task = Task()
-        task.status = 0 #queued
+        task.status = Status_Queued #queued
         task.task_id = datetime.datetime.now().strftime("%Y%m%d_%H_%M_%S_%f")
-        task.result = 0
+        task.result = Result_Unknown
         task.msg = ""
-        task.result_code = 100
+        task.result_code = Result_Unknown
         task.result_url = ""
         task.param = json.dumps(content)
         task.start_time = datetime.datetime.now()
@@ -392,9 +393,9 @@ class Actor:
         dbClientThread = dbClient
         while(self.threadRunning):
             #check 
-            tasks = dbClientThread.queryByStatus(0)
-            taskRunning = len(dbClientThread.queryByStatus(1))
-            taskFinished = len(dbClientThread.queryByStatus(2))
+            tasks = dbClientThread.queryByStatus(Status_Queued)
+            taskRunning = len(dbClientThread.queryByStatus(Status_Doing))
+            taskFinished = len(dbClientThread.queryByStatus(Status_Finished))
             logging.info(f"waiting={len(tasks)}, running={taskRunning}, finished={taskFinished}")
             if(len(tasks) == 0):
                 logging.info(f"no waiting task.")
@@ -402,7 +403,7 @@ class Actor:
                 continue
             
             try:
-                tasks[0].status = 1
+                tasks[0].status = Status_Doing
                 dbClientThread.updateByTaskId(tasks[0], tasks[0].task_id)
                 logging.info(f"start handling task={tasks[0].task_id}")
                 ### request need to be inited as different params
@@ -419,9 +420,9 @@ class Actor:
                 else:
                     logging.error(f"param of {tasks[0].task_id} is {tasks[0].param}, func name is invalid, failed and continue.")
                     tasks[0].result_url = ""
-                    tasks[0].result = -1
-                    tasks[0].status = 2
-                    tasks[0].result_code = 104
+                    tasks[0].result = Result_FailedProductId
+                    tasks[0].status = Status_Finished
+                    tasks[0].result_code = Result_FailedProductId
                     tasks[0].msg = "something wrong during task=" + task.task_id + ", please contact admin."
                     tasks[0].result_file = ""
                     tasks[0].end_time = datetime.datetime.now()
@@ -437,9 +438,9 @@ class Actor:
             except Exception as e:
                 logging.error(f"param of {tasks[0].task_id} is {tasks[0].param}, exception={repr(e)}, failed and continue.")
                 tasks[0].result_url = ""
-                tasks[0].result = -1
-                tasks[0].status = 2
-                tasks[0].result_code = 104
+                tasks[0].result = Result_FailedCommon
+                tasks[0].status = Status_Finished
+                tasks[0].result_code = Result_FailedCommon
                 tasks[0].msg = "something wrong during task=" + tasks[0].task_id + ", please contact admin."
                 tasks[0].result_file = ""
                 tasks[0].end_time = datetime.datetime.now()
@@ -466,9 +467,9 @@ class Actor:
                  diff = diff.replace("\\", "/")
                  task.output = self.url_prefix + diff
                  logging.info(f'save_path={resultFile}, www_folder={self.www_folder}, result_url={task.output}, diff={diff}')
-                 task.result = 1
-                 task.status = 2
-                 task.result_code = 100
+                 task.result = Result_Success
+                 task.status = Status_Finished
+                 task.result_code = Result_Success
                  task.msg = "succeeded"
                  task.end_time = datetime.datetime.now()
                  #update item
@@ -476,9 +477,9 @@ class Actor:
              else:
                  logging.error(f"failed to handle task {task.task_id}")
                  task.output = ""
-                 task.result = -1
-                 task.status = 2
-                 task.result_code = 104
+                 task.result = Result_FailedCommon
+                 task.status = Status_Finished
+                 task.result_code = Result_FailedCommon
                  task.msg = "something wrong during task=" + task.task_id + ", please contact admin."
                  task.end_time = datetime.datetime.now()
                  dbClient.updateByTaskId(task, task.task_id)       
@@ -486,15 +487,15 @@ class Actor:
          except Exception as e:
              logging.error(f"something wrong during task={task.task_id}, exception={repr(e)}")
              task.output = ""
-             task.result = -1
-             task.status = 2
-             task.result_code = 104
+             task.result = Result_FailedCommon
+             task.status = Status_Finished
+             task.result_code = Result_FailedCommon
              task.msg = "something wrong during task=" + task.task_id + ", please contact admin."
              task.end_time = datetime.datetime.now()
              dbClient.updateByTaskId(task, task.task_id)
 
          finally:
-             task.status = 2
+             task.status = Status_Finished
 
 
     # #action function, in sync mode,no task 
@@ -530,29 +531,29 @@ class Actor:
         task = Task()
         if(len(tasks) == 0):
             logging.error(f"cannot found task_id={task_id}")
-            ret.result_code = 200
+            ret.result_code = Result_FailedTaskId
             ret.msg = "cannot find task_id=" + task_id    
         else:
             if(len(tasks) >= 1):
                 logging.error(f"found {len(tasks)} for task_id={task_id}, use the first one")
             
             task.assignAll(tasks[0])
-            if(task.result == 0 and task.status == 0):
-                ret.result_code = 101
+            if(task.result == Result_Unknown and task.status == Status_Queued):
+                ret.result_code = Result_Unknown
                 ret.msg = "task(" + task_id + ") is waiting."
-            elif(task.result == 0 and task.status == 1):
-                ret.result_code = 102
+            elif(task.result == Result_Unknown and task.status == Status_Doing):
+                ret.result_code = Result_Unknown
                 ret.msg = "task(" + task_id + ") is running."
-            elif(task.result == 1): 
-                ret.result_code = 100
+            elif(task.result == Result_Success): 
+                ret.result_code = Result_Success
                 ret.msg = "task(" + task_id + ") has succeeded."
                 output = task.output
 
-            elif(task.result == -1): 
-                ret.result_code = 104
+            elif(task.result <  Result_Unknown): 
+                ret.result_code = task.result
                 ret.msg = "task(" + task_id + ") has failed."
             else:
-                ret.result_code = 104
+                ret.result_code = task.result
                 ret.msg = "task(" + task_id + ") has failed for uncertainty."  
         
         retJ = {"data": output, "result_code": ret.result_code, "msg": ret.msg,"task_id":task_id}
@@ -611,7 +612,7 @@ async def start(content : Request):
 
 
         result.task_id = actor.init_task(json_data)
-        result.result_code = 100
+        result.result_code = 0 #here is a special case
         result.msg = "task_id=" + result.task_id + " has been queued."
       
         retJ = {"task_id":result.task_id, "result_code": result.result_code, "msg": result.msg}
@@ -621,14 +622,14 @@ async def start(content : Request):
         return retJ       
 
     except Exception as e:
-        return JSONResponse(content={"task_id":"", "result_code": 104, "msg": "wrong param. Please check if it is json."}, status_code=200)
+        return JSONResponse(content={"task_id":"", "result_code": Result_FailedParams, "msg": ErrorInfo.get(Result_FailedParams)}, status_code=200)
 
 
-@app.get("/get")
-async def get_status(taskID:str):
+@app.get("/start")
+async def get_start_status(taskID:str):
     if(taskID == None or taskID == ''):
         logging.error("cannot find taskID, please check the input param")
-        return {"data": "", "result_code": 104, "msg": "cannot find param task_id, please check the input param","task_id":""}
+        return {"data": "", "result_code": Result_FailedParams, "msg": ErrorInfo.get(Result_FailedParams), "task_id":""}
     logging.info(f"before startTask, taskID= {taskID}")
     return actor.get_status(taskID)
 
@@ -636,7 +637,7 @@ async def get_status(taskID:str):
 async def get_status(getRequest:StatusRequest):
     if(getRequest.task_id == None or getRequest.task_id == ''):
         logging.error("cannot find task_id, please check the input param")
-        return {"data": "", "result_code": 104, "msg": "cannot find param task_id, please check the input param","task_id":""}
+        return {"data": "", "result_code": Result_FailedParams, "msg": ErrorInfo.get(Result_FailedParams),"task_id":""}
     taskID = getRequest.task_id
     logging.info(f"before startTask, taskID= {taskID}")
     return actor.get_status(taskID)
