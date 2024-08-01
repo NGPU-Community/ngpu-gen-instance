@@ -132,12 +132,14 @@ def resetFacefusionGlobals(sourcePath:str, targetPath:str):
 def download(url: str, directory:str):
     if not os.path.exists(directory):
         os.makedirs(directory)
+    try:
+        filename = datetime.datetime.now().strftime("%Y%m%d_%H_%M_%S_%f") + "_" + url.split("/")[-1]
 
-    filename = datetime.datetime.now().strftime("%Y%m%d_%H_%M_%S_%f") + "_" + url.split("/")[-1]
-
-    file_name = os.path.join(directory, filename)
-    urllib.request.urlretrieve(url, file_name)
-    return file_name
+        file_name = os.path.join(directory, filename)
+        urllib.request.urlretrieve(url, file_name)
+        return file_name
+    except Exception as e:
+        raise Exception(f"cannot download {url}, reason={e}")
 
 class StartRet(BaseModel):
     task_id: str = ""
@@ -423,7 +425,7 @@ class Actor:
                     tasks[0].result = Result_FailedProductId
                     tasks[0].status = Status_Finished
                     tasks[0].result_code = Result_FailedProductId
-                    tasks[0].msg = "something wrong during task=" + task.task_id + ", please contact admin."
+                    tasks[0].msg = f"param of {tasks[0].task_id} is {tasks[0].param}, func name is invalid, failed and continue."
                     tasks[0].result_file = ""
                     tasks[0].end_time = datetime.datetime.now()
                     dbClient.updateByTaskId(tasks[0], tasks[0].task_id)
@@ -441,7 +443,7 @@ class Actor:
                 tasks[0].result = Result_FailedCommon
                 tasks[0].status = Status_Finished
                 tasks[0].result_code = Result_FailedCommon
-                tasks[0].msg = "something wrong during task=" + tasks[0].task_id + ", please contact admin."
+                tasks[0].msg = f"param of {tasks[0].task_id} is {tasks[0].param}, exception={repr(e)}, failed and continue."
                 tasks[0].result_file = ""
                 tasks[0].end_time = datetime.datetime.now()
                 dbClient.updateByTaskId(tasks[0], tasks[0].task_id)
@@ -551,10 +553,10 @@ class Actor:
 
             elif(task.result <  Result_Unknown): 
                 ret.result_code = task.result
-                ret.msg = "task(" + task_id + ") has failed."
+                ret.msg = "task(" + task_id + ") has failed. " + task.msg
             else:
                 ret.result_code = task.result
-                ret.msg = "task(" + task_id + ") has failed for uncertainty."  
+                ret.msg = "task(" + task_id + ") has failed for uncertainty." + task.msg
         
         retJ = {"data": output, "result_code": ret.result_code, "msg": ret.msg,"task_id":task_id}
         #retJson = json.dumps(retJ)
