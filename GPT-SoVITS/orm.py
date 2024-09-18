@@ -1,4 +1,4 @@
-#from asyncio.windows_events import NULL
+﻿#from asyncio.windows_events import NULL
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
@@ -79,6 +79,9 @@ class Voice(Base):
     ref_lang = Column(String(32), default = "auto") #auto, zh, jp, en, ko,
     create_time = Column(DateTime, default = datetime.datetime.now)
     addParam = Column(String(1024), default = "")
+    #add model path
+    gpt_path = Column(String(512), default = "GPT_SoVITS/pretrained_models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt") #local model file path of gpt_path
+    sovits_path = Column(String(512), default = "GPT_SoVITS/pretrained_models/s2G488k.pth") #local model file path of sovits_path
 
     def assignWithoutId(self, other):
         self.ref_audio = other.ref_audio
@@ -86,6 +89,8 @@ class Voice(Base):
         self.ref_lang = other.ref_lang
         self.create_time = other.create_time
         self.addParam = other.addParam
+        self.gpt_path = other.gpt_path
+        self.sovits_path = other.sovits_path
 
     def assignAll(self, other):
         self.id = other.id
@@ -94,6 +99,8 @@ class Voice(Base):
         self.ref_lang = other.ref_lang
         self.create_time = other.create_time
         self.addParam = other.addParam
+        self.gpt_path = other.gpt_path
+        self.sovits_path = other.sovits_path
 
 #very simple client, no care for transaction/rollback. only single thread lock
 class DbClient:

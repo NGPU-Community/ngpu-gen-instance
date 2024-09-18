@@ -1,4 +1,4 @@
-import array
+Ôªøimport array
 from ast import Raise
 import os
 
@@ -28,12 +28,20 @@ from pydub import AudioSegment
 
 import langid
 
+from api_fun import handle, change_sovits_weights, change_gpt_weights
+
+# import argparse
+
 logging.basicConfig(
     # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     format='[%(asctime)s %(levelname)-7s (%(name)s) <%(process)d> %(filename)s:%(lineno)d] %(message)s',
     level=logging.INFO
 )
+#uvicorn cannot support customized parameter.
+# parser = argparse.ArgumentParser(description="GPT-SoVITS api")
 
+# parser.add_argument("--rp", dest="resultPort", type=int, default=9000, help="nginx listening result for output result")
+# args = parser.parse_args()
 
 class AddVoiceRt(BaseModel):
     voice_id: int
@@ -116,15 +124,17 @@ class Actor:
 
         public_ip = self.get_public_ip()
         logging.info(f"public ip for this module is {public_ip}")
-        self.url_prefix = "http://" + public_ip + ":9000/"
+        #7820 is for gpt on 173.
+        self.url_prefix = "http://" + public_ip + ":7820/"
 
-        self.version = "gpt-soVits_v1"
+        self.version = "gpt-soVits_v2"
         
         #for worker thread
         self.thread = threading.Thread(target = self.check_task)
         self.thread.daemon = True
-        self.thread.start()
         self.threadRunning = True
+        self.thread.start()
+
 
     def __del__(self):
         self.threadRunning = False
@@ -237,13 +247,13 @@ class Actor:
             #logging.info(f"for text {voice.inferText}, detect_language returns {language}, {confidence}")
             language = voice.inferLang
             if(voice.cutMode == "auto"):
-                cut = i18n("∞¥±Íµ„∑˚∫≈«–")
+                cut = i18n("ÊåâÊ†áÁÇπÁ¨¶Âè∑Âàá")
             elif(voice.cutMode == "en_period"):
-                cut = i18n("∞¥”¢Œƒæ‰∫≈.«–")
+                cut = i18n("ÊåâËã±ÊñáÂè•Âè∑.Âàá")
             if(language == "zh_stop"):
-                cut = i18n("∞¥÷–Œƒæ‰∫≈°£«–")
+                cut = i18n("Êåâ‰∏≠ÊñáÂè•Âè∑„ÄÇÂàá")
             else:
-                cut = i18n("∞¥±Íµ„∑˚∫≈«–")
+                cut = i18n("ÊåâÊ†áÁÇπÁ¨¶Âè∑Âàá")
             
             synthesis_result = get_tts_wav(ref_wav_path=voiceItem.ref_audio, 
                                        prompt_text= voiceItem.ref_text,
@@ -380,5 +390,30 @@ async def tts(content : TTSRequest):
     #return response
     return retJ
 
+last_voice_id:int = -1
 
+#for stream out
+@appVits.post("/ttsStream")
+async def ttsStream(content : TTSRequest): 
+    """
+    - voiceId: int = '' #must, voice id from adding voice
+    - inferText: str = '' #must, content for tts
+    - inferLang: str = 'auto' #optional, auto, zh, jp, en, ko,
+    - cutMode, str = 'auto', #optional, auto, en_period, zh_stop, punc ( punctuation)
+    """
+    logging.info(f"before infer, content= {content}")
+
+    voiceItems = dbClient.queryByVoiceId(content.voiceId)
+    voiceItem = voiceItems[0]
+    if(voiceItem == None):
+        logging.error(f"cannot find voice, id={content.voiceId}")
+        return None
+    #set voice model
+    global last_voice_id
+    if (last_voice_id != voiceItem.id):
+        logging.info(f"gptpath={voiceItem.gpt_path}, vitspath = {voiceItem.sovits_path}")
+        change_sovits_weights(voiceItem.sovits_path)
+        change_gpt_weights(voiceItem.gpt_path)
+        last_voice_id = voiceItem.id
+    return handle(voiceItem.ref_audio, voiceItem.ref_text, voiceItem.ref_lang, content.inferText, content.inferLang)
 
