@@ -23,6 +23,8 @@ import time
 from Process import *
 from PIL import Image
 
+from types import SimpleNamespace
+
 logging.basicConfig(
     # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     format='[%(asctime)s %(levelname)-7s (%(name)s) <%(process)d> %(filename)s:%(lineno)d] %(message)s',
@@ -132,7 +134,7 @@ class Actor:
             request = Request.from_json(json.loads(tasks[0].param))
             task = Task()
             task.assignAll(tasks[0])
-            self.do_sample(task, request)
+            self.do_sample(task, request, dbClientThread)
             logging.info(f"finish handling task={tasks[0].task_id}")
 
 
@@ -151,7 +153,7 @@ class Actor:
         return file_name
 
     #action function, url is the http photo
-    def do_sample(self, task:Task, request:Request):
+    def do_sample(self, task:Task, request:Request, dbClientThread:DbClient):
         #empty? checked before, no need
          try:
              logging.info(f"download source file:{request.url} to {self.tmp_folder}")
@@ -247,7 +249,7 @@ class Actor:
              task.msg = "succeeded"
              task.end_time = datetime.datetime.now()
              #update item
-             dbClient.updateByTaskId(task, task.task_id)
+             dbClientThread.updateByTaskId(task, task.task_id)
 
          except Exception as e:
              logging.error(f"something wrong during task={task.task_id}, exception={repr(e)}")
@@ -258,13 +260,13 @@ class Actor:
              task.msg = "something wrong during task=" + task.task_id + ", please contact admin."
              task.result_file = ""
              task.end_time = datetime.datetime.now()
-             dbClient.updateByTaskId(task, task.task_id)
+             dbClientThread.updateByTaskId(task, task.task_id)
 
          finally:
              task.status = 2
 
     def get_status(self, task_id: str):
-        ret = MyClass()
+        ret = SimpleNamespace()
         ret.result_url = ""
         tasks = dbClient.queryByTaskId(task_id)
         task = Task()
@@ -335,7 +337,7 @@ async def post_t2tt(content : Request):
     - bgColor: str = '0,255,0,100' #RGBA, Green in default
     """
     logging.info(f"before infer, content= {content}")
-    result = MyClass()
+    result = MyClass(task_id="0",result_code=0, msg="")
 
 
     result.task_id = actor.init_task(content)

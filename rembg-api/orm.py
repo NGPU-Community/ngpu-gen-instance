@@ -79,51 +79,64 @@ class Task(Base):
 #very simple client, no care for transaction/rollback. only single thread lock
 class DbClient:
     def __init__(self):
-        self.engine = create_engine('mysql+mysqlconnector://root:QmKuwq8kSQ8b@localhost:3306/ipollo')
-        Session = sessionmaker(bind=self.engine)
+        self.engine = create_engine('mysql+mysqlconnector://root:QmKuwq8kSQ8b@localhost:3306/ipollo', pool_pre_ping=True)
+        self.Session = sessionmaker(bind=self.engine)
         
         #create table
         #Base.metadata.create_all(self.engine)
-        self.session = Session()
-        #for session protection
+        # self.session = None
+        #for session protection()
         self.lock = threading.Lock()
 
     def __del__(self):
         self.session.close()
 
     def add(self, task : Task):
+        session = self.Session()
         with self.lock:
-            self.session.add(task)
-            self.session.commit()
+            session.add(task)
+            session.commit()
             logging.info(f"add taskid={task.task_id}")
-
+        session.close()
+        
     #in theory, there should be only one
     def queryByTaskId(self, taskID:str):
+        session = self.Session()
         with self.lock:
-            results = self.session.query(Task).filter_by(task_id=taskID).all()
+            results = session.query(Task).filter_by(task_id=taskID).all()
             logging.info(f"query for taskID={taskID}, {len(results)} objects returned.")
+            session.close()
             return results
-
+        session.close()
+        
+        
     def queryByStatus(self, status:int):
+        session = self.Session()
         with self.lock:
-            results = self.session.query(Task).filter_by(status=status).all()
+            results = session.query(Task).filter_by(status=status).all()
             logging.info(f"query for status={status}, {len(results)} objects returned.")
+            session.close()
             return results
-
+        session.close()
+        
     #in theory, there should be only one
     def deleteByTaskId(self, taskID:str):
+        session = self.Session()
         with self.lock:
-            obj_to_delete = self.session.query(Task).filter_by(task_id=taskID).all()
+            obj_to_delete = session.query(Task).filter_by(task_id=taskID).all()
             logging.info(f"query for taskID={taskID}, {len(obj_to_delete)} objects to be deleted.")
             for obj in obj_to_delete:
-                self.session.delete(obj)
-                self.session.commit()
-
+                session.delete(obj)
+                session.commit()
+        session.close()
+        
     def updateByTaskId(self, task: Task, taskID:str):
+        session = self.Session()
         with self.lock:
-            obj_to_update = self.session.query(Task).filter_by(task_id=taskID).first()
+            obj_to_update = session.query(Task).filter_by(task_id=taskID).first()
             if(obj_to_update == None):
                 logging.error(f"cannot update item: cannot find item, taskid = {taskID}, ")
 
             obj_to_update.assignWithoutId(task)
-            self.session.commit()
+            session.commit()
+        session.close()    
