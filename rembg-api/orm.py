@@ -89,7 +89,8 @@ class DbClient:
         self.lock = threading.Lock()
 
     def __del__(self):
-        self.session.close()
+        pass
+        #self.session.close()
 
     def add(self, task : Task):
         session = self.Session()

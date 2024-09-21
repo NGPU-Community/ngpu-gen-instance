@@ -142,14 +142,31 @@ class Actor:
         return
 
     #download url to folder, keep the file name untouched
-    def download(self, url: str, directory:str):
+    # def download(self, url: str, directory:str):
+    #     if not os.path.exists(directory):
+    #         os.makedirs(directory)
+
+    #     filename = url.split("/")[-1]
+
+    #     file_name = os.path.join(directory, filename)
+    #     urllib.request.urlretrieve(url, file_name)
+    #     return file_name
+    def download(self, url: str, directory: str, timeout: int = 10):
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-        filename = url.split("/")[-1]
+        filename = url.split("/")[-1]  # 获取文件名
+        file_name = os.path.join(directory, filename)  # 将文件保存到指定的目录
 
-        file_name = os.path.join(directory, filename)
-        urllib.request.urlretrieve(url, file_name)
+        # 使用 urlopen 下载，手动写入文件
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as response:
+                with open(file_name, 'wb') as out_file:
+                    out_file.write(response.read())  # 将内容写入文件
+        except Exception as e:
+            logging.error(f"Error downloading {url}: {e}")
+            return None
+
         return file_name
 
     #action function, url is the http photo
@@ -158,6 +175,8 @@ class Actor:
          try:
              logging.info(f"download source file:{request.url} to {self.tmp_folder}")
              photo_file = self.download(request.url, self.tmp_folder)
+             if(photo_file == None):
+                 raise ValueError(f"cannot download file, {request.url}")
              logging.info(f"downloaded source")
 
              cmd = []
