@@ -16,7 +16,7 @@ import urllib.request
 import requests
 import datetime
 from moviepy.editor import VideoFileClip
-from GPT_SoVITS.inference_webui_simple import get_tts_wav, i18n
+from GPT_SoVITS.inference_webui import get_tts_wav, i18n
 
 from orm import *
 import time
@@ -37,6 +37,19 @@ logging.basicConfig(
     format='[%(asctime)s %(levelname)-7s (%(name)s) <%(process)d> %(filename)s:%(lineno)d] %(message)s',
     level=logging.INFO
 )
+def setLogging():
+    # 创建新的处理器
+    handler = logging.StreamHandler()
+    # 设置格式
+    formatter = logging.Formatter('[%(asctime)s %(levelname)-7s (%(name)s) <%(process)d> %(filename)s:%(lineno)d] %(message)s')
+    handler.setFormatter(formatter)
+
+    # 清除现有处理器
+    logging.root.handlers = []
+
+    # 设置级别并添加新的处理器
+    logging.root.setLevel(logging.INFO)
+    logging.root.addHandler(handler)
 #uvicorn cannot support customized parameter.
 # parser = argparse.ArgumentParser(description="GPT-SoVITS api")
 
@@ -108,14 +121,14 @@ class Actor:
         else:
             logging.info(f"tmp folder {self.tmp_folder} exists")
 
-        self.www_folder = "/data/GPT-SoVITS/results"
+        self.www_folder = "/root/GPT-SoVITS/results"
         if not os.path.exists(self.www_folder):
             os.makedirs(self.www_folder)
             logging.info(f"created result folder {self.www_folder}")
         else:
             logging.info(f"result folder {self.www_folder} exists")
 
-        self.voice_folder = "/data/GPT-SoVITS/voices"
+        self.voice_folder = "/root/GPT-SoVITS/voices"
         if not os.path.exists(self.voice_folder):
             os.makedirs(self.voice_folder)
             logging.info(f"created voices folder {self.voice_folder}")
@@ -125,7 +138,7 @@ class Actor:
         public_ip = self.get_public_ip()
         logging.info(f"public ip for this module is {public_ip}")
         #7820 is for gpt on 173.
-        self.url_prefix = "http://" + public_ip + ":7820/"
+        self.url_prefix = "http://" + public_ip + ":7816/"
 
         self.version = "gpt-soVits_v2"
         
@@ -158,16 +171,33 @@ class Actor:
         return
 
 
-    #download url to folder, keep the file name untouched
-    def download(self, url: str, directory:str):
+    # #download url to folder, keep the file name untouched
+    # def download(self, url: str, directory:str):
+    #     if not os.path.exists(directory):
+    #         os.makedirs(directory)
+
+    #     filename = url.split("/")[-1]
+    #     filename = datetime.datetime.now().strftime("%Y%m%d_%H_%M_%S_%f") + "_" + filename
+
+    #     file_name = os.path.join(directory, filename)
+    #     urllib.request.urlretrieve(url, file_name)
+    #     return file_name
+    def download(self, url: str, directory: str, timeout: int = 10):
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-        filename = url.split("/")[-1]
-        filename = datetime.datetime.now().strftime("%Y%m%d_%H_%M_%S_%f") + "_" + filename
+        filename = url.split("/")[-1]  # 获取文件名
+        file_name = os.path.join(directory, filename)  # 将文件保存到指定的目录
 
-        file_name = os.path.join(directory, filename)
-        urllib.request.urlretrieve(url, file_name)
+        # 使用 urlopen 下载，手动写入文件
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as response:
+                with open(file_name, 'wb') as out_file:
+                    out_file.write(response.read())  # 将内容写入文件
+        except Exception as e:
+            logging.error(f"Error downloading {url}: {e}")
+            return None
+
         return file_name
 
     #for voice action
@@ -233,6 +263,7 @@ class Actor:
 
     #for real tts
     def tts(self, voice: TTSRequest) ->TTSRt :
+        setLogging()
         ret = TTSRt(srt = "", audio = "", result_code=-1, msg="")
 
         try:
@@ -254,7 +285,7 @@ class Actor:
                 cut = i18n("按中文句号。切")
             else:
                 cut = i18n("按标点符号切")
-            
+            logging.info(f"before get_tts_wav, {voiceItem.ref_audio}, {voiceItem.ref_text}, {voiceItem.ref_lang}, {voice.inferText}, {voice.inferLang}")
             synthesis_result = get_tts_wav(ref_wav_path=voiceItem.ref_audio, 
                                        prompt_text= voiceItem.ref_text,
                                        prompt_language=voiceItem.ref_lang, 
@@ -294,7 +325,7 @@ class Actor:
                 ret.result_code = 100
 
         except Exception as e:
-            logging.error(f"something wrong during tts voice, voiceid={voice.voiceId}, inferText={voice.inferText}, exception={repr(e)}")
+            logging.error(f"something wrong during tts voice, voiceid={voice.voiceId}, inferText={voice.inferText}, exception={e}")
             ret.msg = "something wrong during delete voice,  voiceid=" + str(voice.voiceId) + f", inferText={voice.inferText}, exception={repr(e)}"
             ret.result_code = 104
 

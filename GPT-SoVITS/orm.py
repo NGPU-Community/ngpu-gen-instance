@@ -106,78 +106,101 @@ class Voice(Base):
 class DbClient:
     def __init__(self):
         self.engine = create_engine('mysql+mysqlconnector://root:QmKuwq8kSQ8b@localhost:3306/ipollo')
-        Session = sessionmaker(bind=self.engine)
+        self.Session = sessionmaker(bind=self.engine)
         
         #create table
         #Base.metadata.create_all(self.engine)
-        self.session = Session()
+        #self.session = Session()
         #for session protection
         self.lock = threading.Lock()
 
     def __del__(self):
-        self.session.close()
+        pass
+        #self.session.close()
 
     def add(self, task : Task):
+        session = self.Session()
         with self.lock:
-            self.session.add(task)
-            self.session.commit()
+            session.add(task)
+            session.commit()
             logging.info(f"add taskid={task.task_id}")
-
+        session.close()
+        
     #in theory, there should be only one
     def queryByTaskId(self, taskID:str):
+        session = self.Session()
         with self.lock:
-            results = self.session.query(Task).filter_by(task_id=taskID).all()
+            results = session.query(Task).filter_by(task_id=taskID).all()
             logging.info(f"query for taskID={taskID}, {len(results)} objects returned.")
+            session.close()
             return results
-
+        session.close()
+        
     def queryByStatus(self, status:int):
+        session = self.Session()
         with self.lock:
-            results = self.session.query(Task).filter_by(status=status).all()
+            results = session.query(Task).filter_by(status=status).all()
             logging.info(f"query for status={status}, {len(results)} objects returned.")
+            session.close()
             return results
-
+        session.close()
+        
     #in theory, there should be only one
     def deleteByTaskId(self, taskID:str):
+        session = self.Session()
         with self.lock:
-            obj_to_delete = self.session.query(Task).filter_by(task_id=taskID).all()
+            obj_to_delete = session.query(Task).filter_by(task_id=taskID).all()
             logging.info(f"query for taskID={taskID}, {len(obj_to_delete)} objects to be deleted.")
             for obj in obj_to_delete:
-                self.session.delete(obj)
-                self.session.commit()
-
+                session.delete(obj)
+                session.commit()
+        session.close()
+        
     def updateByTaskId(self, task: Task, taskID:str):
+        session = self.Session()
         with self.lock:
-            obj_to_update = self.session.query(Task).filter_by(task_id=taskID).first()
+            obj_to_update = session.query(Task).filter_by(task_id=taskID).first()
             if(obj_to_update == None):
                 logging.error(f"cannot update item: cannot find item, taskid = {taskID}")
 
             obj_to_update.assignWithoutId(task)
-            self.session.commit()
-
+            session.commit()
+        session.close()
+        
     def addVoice(self, voice : Voice):
+        session = self.Session()
         with self.lock:
-            self.session.add(voice)
-            self.session.commit()
+            session.add(voice)
+            session.commit()
             logging.info(f"add voice={voice.id}")
-
+        session.close()
+        
     #in theory, there should be only one
     def queryByVoiceId(self, voiceID:str):
+        session = self.Session()
         with self.lock:
-            results = self.session.query(Voice).filter_by(id=voiceID).all()
+            results = session.query(Voice).filter_by(id=voiceID).all()
             logging.info(f"query for voice id={voiceID}, {len(results)} objects returned.")
+            session.close()
             return results
-
+        session.close()
+        
     #in theory, there should be only one
     def deleteByVoiceId(self, voiceID:str):
+        session = self.Session()
         with self.lock:
-            obj_to_delete = self.session.query(Voice).filter_by(id=voiceID).all()
+            obj_to_delete = session.query(Voice).filter_by(id=voiceID).all()
             logging.info(f"query for voiceID={voiceID}, {len(obj_to_delete)} objects to be deleted.")
             for obj in obj_to_delete:
-                self.session.delete(obj)
-                self.session.commit()
-
+                session.delete(obj)
+                session.commit()
+        session.close()
+        
     #get the total number of voices
     def getVoiceCount(self) -> int:
+        session = self.Session()
         with self.lock:
-            total_entries = self.session.query(Voice).count()
+            total_entries = session.query(Voice).count()
+            session.close()
             return total_entries
+        session.close()
